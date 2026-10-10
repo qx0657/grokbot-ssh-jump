@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>云电脑没有公网 SSH，也能登录，也能当节点</title>
+  <title>Grokbot 没有公网 SSH，也能登录，也能当节点</title>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -234,31 +234,31 @@
 
     <header class="header">
       <p class="header-eyebrow">Share · 2026-10-10</p>
-      <h1>云电脑没有公网 SSH，也能登录，也能当节点</h1>
-      <p class="subtitle">云电脑自己拨出来，把 22 挂在跳板的回环 2222 上。笔记本经这条隧道登录 root；另一条会话把云电脑的 7890 拉到本机 17890。保活有三层，每一层都有漏下去的情况。</p>
+      <h1>Grokbot 没有公网 SSH，也能登录，也能当节点</h1>
+      <p class="subtitle">Grokbot 自己拨出来，把 22 挂在跳板的回环 2222 上。笔记本经这条隧道登录 root；另一条会话把 Grokbot 的 7890 拉到本机 17890。保活有三层，每一层都有漏下去的情况。</p>
     </header>
 
     <section class="prose">
-      <h2>云电脑把 22 挂到跳板回环</h2>
-      <p>云电脑上的 sshd 只听 <code>127.0.0.1:22</code>。出站是通的，所以由它主动连跳板，做一条反向转发：</p>
+      <h2>Grokbot 把 22 挂到跳板回环</h2>
+      <p>Grokbot 上的 sshd 只听 <code>127.0.0.1:22</code>。出站是通的，所以由它主动连跳板，做一条反向转发：</p>
       <pre>ssh -N -o ExitOnForwardFailure=yes \
   -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
   -R 127.0.0.1:2222:127.0.0.1:22 jump</pre>
-      <p>跳板因此只在自己的回环上听 2222，对端是云电脑的 22。2222 只出现在这个回环上。防火墙上不为它开公网，转发也不绑到 <code>0.0.0.0</code>。</p>
+      <p>跳板因此只在自己的回环上听 2222，对端是 Grokbot 的 22。2222 只出现在这个回环上。防火墙上不为它开公网，转发也不绑到 <code>0.0.0.0</code>。</p>
       <p>无人值守时加上 <code>BatchMode</code> 和 <code>ConnectTimeout</code>。拨出失败就退出，交给后面的监督进程重来。</p>
     </section>
 
     <section class="prose">
       <h2>第二跳才是登录，用户是 root</h2>
-      <p>笔记本先用跳板那把钥匙连上跳板的 22。第二跳才进云电脑：用户是 root，钥匙是另一把，并核对云电脑上固定的那把主机密钥。配置里的 <code>127.0.0.1:2222</code> 写的是跳板自己的回环，这一跳发生在跳板上。</p>
-      <p>拨出用第三把钥匙，只放在云电脑上，用来连跳板。三把钥匙各管一段。</p>
+      <p>笔记本先用跳板那把钥匙连上跳板的 22。第二跳才进 Grokbot：用户是 root，钥匙是另一把，并核对 Grokbot 上固定的那把主机密钥。配置里的 <code>127.0.0.1:2222</code> 写的是跳板自己的回环，这一跳发生在跳板上。</p>
+      <p>拨出用第三把钥匙，只放在 Grokbot 上，用来连跳板。三把钥匙各管一段。</p>
       <pre>Host jump
   HostName 跳板的公网地址
   User root
   IdentityFile ~/.ssh/id_ed25519_to_jump
   IdentitiesOnly yes
 
-Host cloud
+Host grokbot
   HostName 127.0.0.1
   Port 2222
   User root
@@ -272,7 +272,7 @@ Host cloud
       <div class="diagram-container">
         <svg viewBox="0 0 1240 760" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="share-login-title share-login-desc">
           <title id="share-login-title">三台机器和回环上的反向隧道</title>
-          <desc id="share-login-desc">云电脑把 22 挂到跳板回环 2222，笔记本经跳板的 22 做第二跳并登录 root；公网到 2222 的路径停在跳板边界外，第二跳核对笔记本上固定的主机密钥。</desc>
+          <desc id="share-login-desc">Grokbot 把 22 挂到跳板回环 2222，笔记本经跳板的 22 做第二跳并登录 root；公网到 2222 的路径停在跳板边界外，第二跳核对笔记本上固定的主机密钥。</desc>
           <defs>
             <marker id="login-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
               <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
@@ -296,8 +296,8 @@ Host cloud
           <text x="432" y="77" fill="rgba(45,49,66,0.40)" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.14em">跳板</text>
 
           <rect x="816" y="64" width="360" height="512" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
-          <rect x="828" y="68" width="56" height="12" rx="2" fill="#f5f5f5"/>
-          <text x="856" y="77" fill="rgba(45,49,66,0.40)" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.14em">云电脑</text>
+          <rect x="828" y="68" width="80" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="868" y="77" fill="rgba(45,49,66,0.40)" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.14em">Grokbot</text>
 
           <!-- arrows -->
           <line x1="248" y1="156" x2="440" y2="156" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#login-arrow)"/>
@@ -338,7 +338,7 @@ Host cloud
           <rect x="56" y="120" width="192" height="72" rx="6" fill="rgba(79,93,117,0.10)" stroke="#7a8399" stroke-width="1"/>
           <rect x="68" y="128" width="32" height="16" rx="2" fill="transparent" stroke="rgba(122,131,153,0.40)" stroke-width="0.8"/>
           <text x="84" y="139" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">SSH</text>
-          <text x="152" y="164" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">ssh cloud</text>
+          <text x="152" y="164" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">ssh grokbot</text>
           <text x="152" y="180" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle">第二跳用户 root</text>
 
           <rect x="56" y="472" width="192" height="72" rx="6" fill="#f5f5f5"/>
@@ -373,7 +373,7 @@ Host cloud
           <rect x="876" y="248" width="240" height="72" rx="6" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
           <rect x="888" y="256" width="40" height="16" rx="2" fill="transparent" stroke="rgba(45,49,66,0.30)" stroke-width="0.8"/>
           <text x="908" y="267" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">SSHD</text>
-          <text x="996" y="292" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">云端 sshd</text>
+          <text x="996" y="292" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">Grokbot sshd</text>
           <text x="996" y="308" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">127.0.0.1:22</text>
 
           <rect x="876" y="472" width="240" height="72" rx="6" fill="#f5f5f5"/>
@@ -404,9 +404,9 @@ Host cloud
 
     <section class="prose">
       <h2>节点是 box 的另一条会话</h2>
-      <p>同一个 2222 上再开一条会话，用户是 box。这条会话留在转发上：笔记本的 <code>127.0.0.1:17890</code> 接到云电脑的 <code>127.0.0.1:7890</code>。7890 是云电脑上的 mixed 入口，出站 direct，出口地址属于云电脑，流量记在云电脑上。</p>
+      <p>同一个 2222 上再开一条会话，用户是 box。这条会话留在转发上：笔记本的 <code>127.0.0.1:17890</code> 接到 Grokbot 的 <code>127.0.0.1:7890</code>。7890 是Grokbot 上的 mixed 入口，出站 direct，出口地址属于 Grokbot，流量记在 Grokbot 上。</p>
       <p>代理客户端里它是一个 SOCKS，指向 <code>127.0.0.1:17890</code>，UDP 关掉。订阅文件里没有这一条。跳板自己的订阅端口在 443，流量留在跳板里，到边界就停。</p>
-      <pre>Host cloud-proxy
+      <pre>Host grokbot-proxy
   HostName 127.0.0.1
   Port 2222
   User box
@@ -419,7 +419,7 @@ Host cloud
   RequestTTY no
   ServerAliveInterval 30
   ServerAliveCountMax 6</pre>
-      <p class="note">测连通用 <code>curl --socks5-hostname</code>。域名在云电脑上解析，本机即使指定 IPv4，结果里仍可能出现云电脑的 IPv6。这段转发没写 <code>ConnectTimeout</code> 时，第二跳卡住会留下一个活着的进程，17890 却没有在听；这时 root 登录往往还在。要重启的是笔记本上的这段转发。</p>
+      <p class="note">测连通用 <code>curl --socks5-hostname</code>。域名在 Grokbot 上解析，本机即使指定 IPv4，结果里仍可能出现 Grokbot 的 IPv6。这段转发没写 <code>ConnectTimeout</code> 时，第二跳卡住会留下一个活着的进程，17890 却没有在听；这时 root 登录往往还在。要重启的是笔记本上的这段转发。</p>
     </section>
 
     <figure class="figure">
@@ -427,7 +427,7 @@ Host cloud
       <div class="diagram-container">
         <svg viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="share-fork-title share-fork-desc">
           <title id="share-fork-title">同一条隧道分成登录和本地代理</title>
-          <desc id="share-fork-desc">回环 2222 同时承载 root 登录和 box 的本地转发，本机 17890 接到云电脑 7890 后从沙箱出口出去；跳板 443 上的订阅流量沿边界上行后停下，不进入云电脑。</desc>
+          <desc id="share-fork-desc">回环 2222 同时承载 root 登录和 box 的本地转发，本机 17890 接到 Grokbot 7890 后从沙箱出口出去；跳板 443 上的订阅流量沿边界上行后停下，不进入 Grokbot。</desc>
           <defs>
             <marker id="fork-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
               <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
@@ -451,8 +451,8 @@ Host cloud
           <text x="384" y="61" fill="rgba(45,49,66,0.40)" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.14em">跳板</text>
 
           <rect x="728" y="48" width="448" height="440" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
-          <rect x="740" y="52" width="56" height="12" rx="2" fill="#f5f5f5"/>
-          <text x="768" y="61" fill="rgba(45,49,66,0.40)" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.14em">云电脑</text>
+          <rect x="740" y="52" width="80" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="780" y="61" fill="rgba(45,49,66,0.40)" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.14em">Grokbot</text>
 
           <path d="M 244,116 H 484 Q 492,116 492,124 V 168" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#fork-arrow)"/>
           <rect x="344" y="96" width="40" height="12" rx="2" fill="#f5f5f5"/>
@@ -486,7 +486,7 @@ Host cloud
           <rect x="44" y="80" width="200" height="72" rx="6" fill="rgba(79,93,117,0.10)" stroke="#7a8399" stroke-width="1"/>
           <rect x="56" y="88" width="32" height="16" rx="2" fill="transparent" stroke="rgba(122,131,153,0.40)" stroke-width="0.8"/>
           <text x="72" y="99" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">SSH</text>
-          <text x="144" y="124" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">ssh cloud</text>
+          <text x="144" y="124" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">ssh grokbot</text>
           <text x="144" y="140" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle">用户 root</text>
 
           <rect x="44" y="300" width="200" height="80" rx="6" fill="#f5f5f5"/>
@@ -521,7 +521,7 @@ Host cloud
           <rect x="768" y="392" width="200" height="72" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1.2"/>
           <rect x="780" y="400" width="44" height="16" rx="2" fill="transparent" stroke="rgba(235,108,54,0.50)" stroke-width="0.8"/>
           <text x="802" y="411" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">MIXED</text>
-          <text x="868" y="436" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">云端 7890</text>
+          <text x="868" y="436" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">Grokbot 7890</text>
           <text x="868" y="452" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle">出站 direct</text>
 
           <rect x="1048" y="392" width="112" height="72" rx="6" fill="#f5f5f5"/>
@@ -529,7 +529,7 @@ Host cloud
           <rect x="1060" y="400" width="32" height="16" rx="2" fill="transparent" stroke="rgba(45,49,66,0.30)" stroke-width="0.8"/>
           <text x="1076" y="411" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">OUT</text>
           <text x="1104" y="436" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">沙箱出口</text>
-          <text x="1104" y="452" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle">云电脑地址</text>
+          <text x="1104" y="452" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle">Grokbot 出口</text>
 
           <rect x="392" y="468" width="200" height="72" rx="6" fill="#f5f5f5"/>
           <rect x="392" y="468" width="200" height="72" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
@@ -558,10 +558,10 @@ Host cloud
     <section class="prose">
       <h2>保活三层，本机进程只管 17890</h2>
       <p>隧道会断。三层各补一种断法。拨出侧的保活是 15 秒 × 3，笔记本这段转发是 30 秒 × 6，跳板 sshd 是 30 秒 × 2。三处数字各管各的连接。</p>
-      <p>监督进程大约每 20 秒看一次云端 sshd、固定主机密钥、root 的钥匙、7890，以及那条 <code>-R</code>。断了就重拨。2222 被占住时，只结束跳板上听在回环 2222 的那一个会话，跳板自己的 sshd 继续留着。</p>
+      <p>监督进程大约每 20 秒看一次Grokbot sshd、固定主机密钥、root 的钥匙、7890，以及那条 <code>-R</code>。断了就重拨。2222 被占住时，只结束跳板上听在回环 2222 的那一个会话，跳板自己的 sshd 继续留着。</p>
       <p>第二层每 5 分钟跑一次。启动文件缺了才补回去，再把监督进程拉起来。文件还在、会话已经死了的时候，这一层补不上。</p>
       <p>第三层在跳板的 sshd 上。30 秒一次，连续 2 次没有响应就拆连接。对端还在回保活包时，它留着这条连接。</p>
-      <p>跳板的 sshd 整个停了，三层都拨不进去。这时打开商家面板的 VNC。笔记本上另有一个常驻进程，只把 <code>ssh -N cloud-proxy</code> 拉起来，保住本机 17890。云电脑和跳板的隧道由上面三层负责。</p>
+      <p>跳板的 sshd 整个停了，三层都拨不进去。这时打开商家面板的 VNC。笔记本上另有一个常驻进程，只把 <code>ssh -N grokbot-proxy</code> 拉起来，保住本机 17890。Grokbot 和跳板的隧道由上面三层负责。</p>
     </section>
 
     <figure class="figure">
@@ -628,7 +628,7 @@ Host cloud
 
           <rect x="120" y="448" width="800" height="56" rx="6" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.20)" stroke-width="1" stroke-dasharray="4,3"/>
           <text x="140" y="480" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif">笔记本常驻</text>
-          <text x="280" y="480" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">只拉起本机 17890，不修云电脑，也不修跳板</text>
+          <text x="280" y="480" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">只拉起本机 17890，不修 Grokbot，也不修跳板</text>
 
           <line x1="36" y1="548" x2="1044" y2="548" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
           <text x="36" y="572" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">LEGEND</text>
@@ -649,7 +649,7 @@ Host cloud
           <h3>登录</h3>
         </div>
         <ul>
-          <li>云电脑拨出，2222 只在跳板回环</li>
+          <li>Grokbot 拨出，2222 只在跳板回环</li>
           <li>第二跳用户是 root</li>
           <li>核对固定的主机密钥</li>
         </ul>
@@ -662,7 +662,7 @@ Host cloud
         </div>
         <ul>
           <li>box 会话，17890 接到 7890</li>
-          <li>出口在云电脑，direct</li>
+          <li>出口在 Grokbot，direct</li>
           <li>跳板 443 是另一条订阅</li>
         </ul>
       </article>
