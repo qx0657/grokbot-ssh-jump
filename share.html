@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>云电脑没有公网 SSH，也能登录，也能当节点</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --color-paper:       #f5f5f5;
+      --color-paper-2:     #ececec;
+      --color-ink:         #2d3142;
+      --color-muted:       #4f5d75;
+      --color-soft:        #7a8399;
+      --color-rule:        rgba(45,49,66,0.12);
+      --color-rule-solid:  rgba(79,93,117,0.25);
+      --color-accent:      #eb6c36;
+      --color-accent-tint: rgba(235,108,54,0.08);
+      --color-link:        #2e5aa8;
+      --font-sans:   'Geist', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+      --font-serif:  'Instrument Serif', 'Songti SC', 'Noto Serif SC', 'Times New Roman', serif;
+      --font-mono:   'Geist Mono', 'PingFang SC', ui-monospace, Menlo, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      min-height: 100vh;
+      padding: 3rem 2rem 4rem;
+      color: var(--color-ink);
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    .header { margin-bottom: 2.5rem; max-width: 40rem; }
+
+    .header-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.75rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.75rem, 3vw + 1rem, 2.5rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 0.75rem;
+    }
+
+    .subtitle {
+      font-family: var(--font-sans);
+      font-size: 1rem;
+      line-height: 1.7;
+      color: var(--color-muted);
+    }
+
+    .prose {
+      max-width: 40rem;
+      margin-top: 2.75rem;
+    }
+
+    .prose h2 {
+      font-family: var(--font-serif);
+      font-size: 1.5rem;
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+      margin-bottom: 0.85rem;
+    }
+
+    .prose p {
+      font-size: 1rem;
+      line-height: 1.75;
+      color: var(--color-ink);
+      margin-bottom: 0.9rem;
+    }
+
+    .prose p.note {
+      color: var(--color-muted);
+      font-size: 0.9375rem;
+    }
+
+    pre {
+      margin: 1rem 0 0.4rem;
+      padding: 1rem 1.1rem;
+      background: #ffffff;
+      border: 1px solid var(--color-rule);
+      border-radius: 6px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      line-height: 1.6;
+      color: var(--color-ink);
+    }
+
+    .figure {
+      margin-top: 1.75rem;
+    }
+
+    .figure-label {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--color-soft);
+      margin-bottom: 0.6rem;
+    }
+
+    .diagram-container {
+      background: transparent;
+      border: none;
+      padding: 0;
+      overflow-x: auto;
+    }
+
+    svg { width: 100%; min-width: 900px; display: block; }
+
+    .caption {
+      margin-top: 0.7rem;
+      max-width: 46rem;
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      line-height: 1.6;
+      color: var(--color-muted);
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr 0.9fr;
+      gap: 1rem;
+      margin-top: 2.5rem;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 6px;
+      border: 1px solid var(--color-rule);
+      padding: 1.25rem;
+    }
+
+    .card .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--color-soft);
+      margin-bottom: 0.75rem;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.875rem;
+      padding-bottom: 0.875rem;
+      border-bottom: 1px solid rgba(45,49,66,0.08);
+    }
+
+    .card-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .card-dot.ink    { background: var(--color-ink); }
+    .card-dot.muted  { background: var(--color-muted); }
+    .card-dot.coral  { background: var(--color-accent); }
+    .card-dot.soft   { background: var(--color-soft); }
+
+    .card h3 {
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--color-ink);
+      letter-spacing: -0.005em;
+    }
+
+    .card ul {
+      list-style: none;
+      color: var(--color-muted);
+      font-size: 0.8125rem;
+      line-height: 1.6;
+    }
+
+    .card li {
+      margin-bottom: 0.35rem;
+      padding-left: 0.875rem;
+      position: relative;
+    }
+
+    .card li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: rgba(45,49,66,0.25);
+      font-size: 0.75rem;
+    }
+
+    .footer {
+      margin-top: 2.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(45,49,66,0.10);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+      line-height: 1.6;
+      color: var(--color-soft);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 0.75rem 2rem;
+    }
+
+    .footer p { max-width: 46rem; }
+
+    @media (max-width: 800px) {
+      body { padding: 2rem 1.1rem 3rem; }
+      .cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header class="header">
+      <p class="header-eyebrow">Share · 2026-10-10</p>
+      <h1>云电脑没有公网 SSH，也能登录，也能当节点</h1>
+      <p class="subtitle">云电脑自己拨出来，把 22 挂在跳板的回环 2222 上。笔记本经这条隧道登录 root；另一条会话把云电脑的 7890 拉到本机 17890。保活有三层，每一层都有漏下去的情况。</p>
+    </header>
+
+    <section class="prose">
+      <h2>云电脑把 22 挂到跳板回环</h2>
+      <p>云电脑上的 sshd 只听 <code>127.0.0.1:22</code>。出站是通的，所以由它主动连跳板，做一条反向转发：</p>
+      <pre>ssh -N -o ExitOnForwardFailure=yes \
+  -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+  -R 127.0.0.1:2222:127.0.0.1:22 jump</pre>
+      <p>跳板因此只在自己的回环上听 2222，对端是云电脑的 22。2222 只出现在这个回环上。防火墙上不为它开公网，转发也不绑到 <code>0.0.0.0</code>。</p>
+      <p>无人值守时加上 <code>BatchMode</code> 和 <code>ConnectTimeout</code>。拨出失败就退出，交给后面的监督进程重来。</p>
+    </section>
+
+    <section class="prose">
+      <h2>第二跳才是登录，用户是 root</h2>
+      <p>笔记本先用跳板那把钥匙连上跳板的 22。第二跳才进云电脑：用户是 root，钥匙是另一把，并核对云电脑上固定的那把主机密钥。配置里的 <code>127.0.0.1:2222</code> 写的是跳板自己的回环，这一跳发生在跳板上。</p>
+      <p>拨出用第三把钥匙，只放在云电脑上，用来连跳板。三把钥匙各管一段。</p>
+      <pre>Host jump
+  HostName 跳板的公网地址
+  User root
+  IdentityFile ~/.ssh/id_ed25519_to_jump
+  IdentitiesOnly yes
+
+Host cloud
+  HostName 127.0.0.1
+  Port 2222
+  User root
+  ProxyJump jump
+  IdentityFile ~/.ssh/id_ed25519_to_cloud
+  IdentitiesOnly yes</pre>
+    </section>
+
+    <figure class="figure">
+      <p class="figure-label">01 · Architecture · Secure paved road</p>
+      <div class="diagram-container">
+        <svg viewBox="0 0 1240 760" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="share-login-title share-login-desc">
+          <title id="share-login-title">三台机器和回环上的反向隧道</title>
+          <desc id="share-login-desc">云电脑把 22 挂到跳板回环 2222，笔记本经跳板的 22 做第二跳并登录 root；公网到 2222 的路径停在跳板边界外，第二跳核对笔记本上固定的主机密钥。</desc>
+          <defs>
+            <marker id="login-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+            </marker>
+            <marker id="login-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/>
+            </marker>
+            <marker id="login-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/>
+            </marker>
+          </defs>
+
+          <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+          <rect x="32" y="64" width="240" height="512" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+          <rect x="44" y="68" width="56" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="72" y="77" fill="rgba(45,49,66,0.40)" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.14em">笔记本</text>
+
+          <rect x="400" y="64" width="320" height="360" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+          <rect x="412" y="68" width="40" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="432" y="77" fill="rgba(45,49,66,0.40)" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.14em">跳板</text>
+
+          <rect x="816" y="64" width="360" height="512" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+          <rect x="828" y="68" width="56" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="856" y="77" fill="rgba(45,49,66,0.40)" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.14em">云电脑</text>
+
+          <!-- arrows -->
+          <line x1="248" y1="156" x2="440" y2="156" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#login-arrow)"/>
+          <rect x="320" y="136" width="48" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="344" y="145" fill="#7a8399" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.06em">第一跳</text>
+
+          <line x1="876" y1="156" x2="680" y2="156" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#login-arrow-accent)"/>
+          <rect x="748" y="136" width="40" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="768" y="145" fill="#eb6c36" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.06em">拨出</text>
+
+          <line x1="520" y1="192" x2="520" y2="240" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#login-arrow)"/>
+          <rect x="472" y="208" width="40" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="492" y="217" fill="#7a8399" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.06em">监听</text>
+
+          <line x1="600" y1="192" x2="600" y2="240" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#login-arrow)"/>
+          <rect x="608" y="208" width="40" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="628" y="217" fill="#7a8399" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.06em">转发</text>
+
+          <line x1="680" y1="284" x2="876" y2="284" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#login-arrow)"/>
+          <rect x="744" y="264" width="48" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="768" y="273" fill="#7a8399" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.06em">第二跳</text>
+
+          <line x1="996" y1="320" x2="996" y2="472" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#login-arrow)"/>
+          <rect x="1004" y="388" width="40" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="1024" y="397" fill="#7a8399" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.06em">登录</text>
+
+          <path d="M 1116,284 H 1204 Q 1212,284 1212,292 V 644 Q 1212,652 1204,652 H 160 Q 152,652 152,644 V 544" fill="none" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#login-arrow)"/>
+          <rect x="536" y="632" width="48" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="560" y="641" fill="#7a8399" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.06em">核对</text>
+
+          <text x="304" y="288" fill="#2d3142" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="end" letter-spacing="0.06em">公网</text>
+          <line x1="312" y1="284" x2="364" y2="284" stroke="#2d3142" stroke-width="1" stroke-dasharray="4,3"/>
+          <rect x="316" y="264" width="40" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="336" y="273" fill="#2d3142" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.06em">禁止</text>
+
+          <!-- nodes -->
+          <rect x="56" y="120" width="192" height="72" rx="6" fill="#f5f5f5"/>
+          <rect x="56" y="120" width="192" height="72" rx="6" fill="rgba(79,93,117,0.10)" stroke="#7a8399" stroke-width="1"/>
+          <rect x="68" y="128" width="32" height="16" rx="2" fill="transparent" stroke="rgba(122,131,153,0.40)" stroke-width="0.8"/>
+          <text x="84" y="139" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">SSH</text>
+          <text x="152" y="164" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">ssh cloud</text>
+          <text x="152" y="180" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle">第二跳用户 root</text>
+
+          <rect x="56" y="472" width="192" height="72" rx="6" fill="#f5f5f5"/>
+          <rect x="56" y="472" width="192" height="72" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+          <rect x="68" y="480" width="44" height="16" rx="2" fill="transparent" stroke="rgba(79,93,117,0.40)" stroke-width="0.8"/>
+          <text x="90" y="491" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">AUDIT</text>
+          <text x="152" y="516" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">固定主机密钥</text>
+          <text x="152" y="532" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle">第二跳才核对</text>
+
+          <rect x="440" y="120" width="240" height="72" rx="6" fill="#f5f5f5"/>
+          <rect x="440" y="120" width="240" height="72" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <rect x="452" y="128" width="40" height="16" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+          <text x="472" y="139" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">SSHD</text>
+          <text x="560" y="164" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">跳板 sshd</text>
+          <text x="560" y="180" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle">公网只到 :22</text>
+
+          <rect x="440" y="240" width="240" height="88" rx="6" fill="#f5f5f5"/>
+          <rect x="440" y="240" width="240" height="88" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1.2"/>
+          <rect x="452" y="252" width="40" height="16" rx="2" fill="transparent" stroke="rgba(235,108,54,0.50)" stroke-width="0.8"/>
+          <text x="472" y="263" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">GATE</text>
+          <text x="560" y="292" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">回环 2222</text>
+          <text x="560" y="308" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle">127.0.0.1</text>
+
+          <rect x="876" y="120" width="240" height="72" rx="6" fill="#f5f5f5"/>
+          <rect x="876" y="120" width="240" height="72" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <rect x="888" y="128" width="32" height="16" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+          <text x="904" y="139" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">SSH</text>
+          <text x="996" y="164" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">拨出隧道</text>
+          <text x="996" y="180" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">ssh -R</text>
+
+          <rect x="876" y="248" width="240" height="72" rx="6" fill="#f5f5f5"/>
+          <rect x="876" y="248" width="240" height="72" rx="6" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+          <rect x="888" y="256" width="40" height="16" rx="2" fill="transparent" stroke="rgba(45,49,66,0.30)" stroke-width="0.8"/>
+          <text x="908" y="267" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">SSHD</text>
+          <text x="996" y="292" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">云端 sshd</text>
+          <text x="996" y="308" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">127.0.0.1:22</text>
+
+          <rect x="876" y="472" width="240" height="72" rx="6" fill="#f5f5f5"/>
+          <rect x="876" y="472" width="240" height="72" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <rect x="888" y="480" width="40" height="16" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+          <text x="908" y="491" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">USER</text>
+          <text x="996" y="516" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">root 会话</text>
+          <text x="996" y="532" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle">专用钥匙</text>
+
+          <rect x="364" y="276" width="16" height="16" rx="2" fill="#f5f5f5" stroke="#2d3142" stroke-width="1"/>
+          <line x1="368" y1="280" x2="376" y2="288" stroke="#2d3142" stroke-width="1"/>
+          <line x1="376" y1="280" x2="368" y2="288" stroke="#2d3142" stroke-width="1"/>
+
+          <line x1="32" y1="700" x2="1208" y2="700" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+          <text x="32" y="724" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">LEGEND</text>
+          <line x1="120" y1="720" x2="148" y2="720" stroke="#4f5d75" stroke-width="1.2"/>
+          <text x="156" y="724" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">允许通过</text>
+          <line x1="248" y1="720" x2="276" y2="720" stroke="#eb6c36" stroke-width="1.2"/>
+          <text x="284" y="724" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">拨出</text>
+          <line x1="348" y1="720" x2="376" y2="720" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="384" y="724" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">核对主机密钥</text>
+          <rect x="500" y="712" width="12" height="12" rx="2" fill="#f5f5f5" stroke="#2d3142" stroke-width="1"/>
+          <text x="520" y="724" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">停在边界外</text>
+        </svg>
+      </div>
+      <p class="caption">2222 是这张图里唯一涂了强调色的门。公网可以到跳板的 22，到 2222 的那一笔在边界前停下。</p>
+    </figure>
+
+    <section class="prose">
+      <h2>节点是 box 的另一条会话</h2>
+      <p>同一个 2222 上再开一条会话，用户是 box。这条会话留在转发上：笔记本的 <code>127.0.0.1:17890</code> 接到云电脑的 <code>127.0.0.1:7890</code>。7890 是云电脑上的 mixed 入口，出站 direct，出口地址属于云电脑，流量记在云电脑上。</p>
+      <p>代理客户端里它是一个 SOCKS，指向 <code>127.0.0.1:17890</code>，UDP 关掉。订阅文件里没有这一条。跳板自己的订阅端口在 443，流量留在跳板里，到边界就停。</p>
+      <pre>Host cloud-proxy
+  HostName 127.0.0.1
+  Port 2222
+  User box
+  ProxyJump jump
+  IdentityFile ~/.ssh/id_ed25519_to_cloud
+  IdentitiesOnly yes
+  LocalForward 127.0.0.1:17890 127.0.0.1:7890
+  ExitOnForwardFailure yes
+  BatchMode yes
+  RequestTTY no
+  ServerAliveInterval 30
+  ServerAliveCountMax 6</pre>
+      <p class="note">测连通用 <code>curl --socks5-hostname</code>。域名在云电脑上解析，本机即使指定 IPv4，结果里仍可能出现云电脑的 IPv6。这段转发没写 <code>ConnectTimeout</code> 时，第二跳卡住会留下一个活着的进程，17890 却没有在听；这时 root 登录往往还在。要重启的是笔记本上的这段转发。</p>
+    </section>
+
+    <figure class="figure">
+      <p class="figure-label">02 · Architecture · 同一条隧道分叉</p>
+      <div class="diagram-container">
+        <svg viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="share-fork-title share-fork-desc">
+          <title id="share-fork-title">同一条隧道分成登录和本地代理</title>
+          <desc id="share-fork-desc">回环 2222 同时承载 root 登录和 box 的本地转发，本机 17890 接到云电脑 7890 后从沙箱出口出去；跳板 443 上的订阅流量沿边界上行后停下，不进入云电脑。</desc>
+          <defs>
+            <marker id="fork-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+            </marker>
+            <marker id="fork-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/>
+            </marker>
+            <marker id="fork-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/>
+            </marker>
+          </defs>
+
+          <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+          <rect x="24" y="48" width="240" height="360" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+          <rect x="36" y="52" width="56" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="64" y="61" fill="rgba(45,49,66,0.40)" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.14em">笔记本</text>
+
+          <rect x="352" y="48" width="288" height="516" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+          <rect x="364" y="52" width="40" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="384" y="61" fill="rgba(45,49,66,0.40)" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.14em">跳板</text>
+
+          <rect x="728" y="48" width="448" height="440" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+          <rect x="740" y="52" width="56" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="768" y="61" fill="rgba(45,49,66,0.40)" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.14em">云电脑</text>
+
+          <path d="M 244,116 H 484 Q 492,116 492,124 V 168" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#fork-arrow)"/>
+          <rect x="344" y="96" width="40" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="364" y="105" fill="#7a8399" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.06em">进入</text>
+
+          <path d="M 244,340 H 484 Q 492,340 492,332 V 264" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#fork-arrow)"/>
+          <rect x="344" y="320" width="40" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="364" y="329" fill="#7a8399" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.06em">代理</text>
+
+          <path d="M 592,196 H 672 Q 680,196 680,188 V 124 Q 680,116 688,116 H 768" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#fork-arrow)"/>
+          <rect x="632" y="148" width="40" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="652" y="157" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">root</text>
+
+          <path d="M 592,236 H 712 Q 720,236 720,244 V 276 Q 720,284 728,284 H 768" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#fork-arrow)"/>
+          <rect x="728" y="252" width="32" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="744" y="261" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">box</text>
+
+          <line x1="868" y1="320" x2="868" y2="392" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#fork-arrow)"/>
+          <rect x="876" y="348" width="40" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="896" y="357" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">7890</text>
+
+          <line x1="968" y1="428" x2="1048" y2="428" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#fork-arrow)"/>
+          <rect x="984" y="408" width="40" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="1004" y="417" fill="#7a8399" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.06em">出口</text>
+
+          <path d="M 592,504 H 608 Q 616,504 616,496 V 400" fill="none" stroke="#2d3142" stroke-width="1" stroke-dasharray="4,3"/>
+          <rect x="552" y="440" width="56" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="580" y="449" fill="#2d3142" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle" letter-spacing="0.06em">不汇入</text>
+
+          <rect x="44" y="80" width="200" height="72" rx="6" fill="#f5f5f5"/>
+          <rect x="44" y="80" width="200" height="72" rx="6" fill="rgba(79,93,117,0.10)" stroke="#7a8399" stroke-width="1"/>
+          <rect x="56" y="88" width="32" height="16" rx="2" fill="transparent" stroke="rgba(122,131,153,0.40)" stroke-width="0.8"/>
+          <text x="72" y="99" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">SSH</text>
+          <text x="144" y="124" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">ssh cloud</text>
+          <text x="144" y="140" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle">用户 root</text>
+
+          <rect x="44" y="300" width="200" height="80" rx="6" fill="#f5f5f5"/>
+          <rect x="44" y="300" width="200" height="80" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1.2"/>
+          <rect x="56" y="312" width="48" height="16" rx="2" fill="transparent" stroke="rgba(235,108,54,0.50)" stroke-width="0.8"/>
+          <text x="80" y="323" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">SOCKS</text>
+          <text x="144" y="348" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">本机 17890</text>
+          <text x="144" y="364" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle">127.0.0.1 · 无 UDP</text>
+
+          <rect x="392" y="168" width="200" height="96" rx="6" fill="#f5f5f5"/>
+          <rect x="392" y="168" width="200" height="96" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <rect x="404" y="180" width="32" height="16" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+          <text x="420" y="191" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">TUN</text>
+          <text x="492" y="220" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">回环 2222</text>
+          <text x="492" y="236" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle">两条会话共用</text>
+
+          <rect x="768" y="80" width="200" height="72" rx="6" fill="#f5f5f5"/>
+          <rect x="768" y="80" width="200" height="72" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <rect x="780" y="88" width="40" height="16" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+          <text x="800" y="99" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">USER</text>
+          <text x="868" y="124" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">root 会话</text>
+          <text x="868" y="140" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle">交互 shell</text>
+
+          <rect x="768" y="248" width="200" height="72" rx="6" fill="#f5f5f5"/>
+          <rect x="768" y="248" width="200" height="72" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <rect x="780" y="256" width="32" height="16" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+          <text x="796" y="267" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">BOX</text>
+          <text x="868" y="292" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">用户 box</text>
+          <text x="868" y="308" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">LocalForward</text>
+
+          <rect x="768" y="392" width="200" height="72" rx="6" fill="#f5f5f5"/>
+          <rect x="768" y="392" width="200" height="72" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1.2"/>
+          <rect x="780" y="400" width="44" height="16" rx="2" fill="transparent" stroke="rgba(235,108,54,0.50)" stroke-width="0.8"/>
+          <text x="802" y="411" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">MIXED</text>
+          <text x="868" y="436" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">云端 7890</text>
+          <text x="868" y="452" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle">出站 direct</text>
+
+          <rect x="1048" y="392" width="112" height="72" rx="6" fill="#f5f5f5"/>
+          <rect x="1048" y="392" width="112" height="72" rx="6" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+          <rect x="1060" y="400" width="32" height="16" rx="2" fill="transparent" stroke="rgba(45,49,66,0.30)" stroke-width="0.8"/>
+          <text x="1076" y="411" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">OUT</text>
+          <text x="1104" y="436" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">沙箱出口</text>
+          <text x="1104" y="452" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle">云电脑地址</text>
+
+          <rect x="392" y="468" width="200" height="72" rx="6" fill="#f5f5f5"/>
+          <rect x="392" y="468" width="200" height="72" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <rect x="404" y="476" width="32" height="16" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+          <text x="420" y="487" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">SUB</text>
+          <text x="492" y="512" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif" text-anchor="middle">跳板 :443</text>
+          <text x="492" y="528" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" text-anchor="middle">订阅节点</text>
+
+          <rect x="608" y="384" width="16" height="16" rx="2" fill="#f5f5f5" stroke="#2d3142" stroke-width="1"/>
+          <line x1="612" y1="388" x2="620" y2="396" stroke="#2d3142" stroke-width="1"/>
+          <line x1="620" y1="388" x2="612" y2="396" stroke="#2d3142" stroke-width="1"/>
+
+          <line x1="24" y1="628" x2="1176" y2="628" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+          <text x="24" y="656" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">LEGEND</text>
+          <rect x="112" y="644" width="12" height="12" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+          <text x="132" y="656" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">节点的两端</text>
+          <line x1="232" y1="652" x2="260" y2="652" stroke="#4f5d75" stroke-width="1.2"/>
+          <text x="268" y="656" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">共用 2222</text>
+          <line x1="360" y1="652" x2="388" y2="652" stroke="#2d3142" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="396" y="656" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">443 在边界停下</text>
+        </svg>
+      </div>
+      <p class="caption">强调色只落在 17890 和 7890。443 和这条隧道住在同一台跳板上，中间那一笔走到边界就停。</p>
+    </figure>
+
+    <section class="prose">
+      <h2>保活三层，本机进程只管 17890</h2>
+      <p>隧道会断。三层各补一种断法。拨出侧的保活是 15 秒 × 3，笔记本这段转发是 30 秒 × 6，跳板 sshd 是 30 秒 × 2。三处数字各管各的连接。</p>
+      <p>监督进程大约每 20 秒看一次云端 sshd、固定主机密钥、root 的钥匙、7890，以及那条 <code>-R</code>。断了就重拨。2222 被占住时，只结束跳板上听在回环 2222 的那一个会话，跳板自己的 sshd 继续留着。</p>
+      <p>第二层每 5 分钟跑一次。启动文件缺了才补回去，再把监督进程拉起来。文件还在、会话已经死了的时候，这一层补不上。</p>
+      <p>第三层在跳板的 sshd 上。30 秒一次，连续 2 次没有响应就拆连接。对端还在回保活包时，它留着这条连接。</p>
+      <p>跳板的 sshd 整个停了，三层都拨不进去。这时打开商家面板的 VNC。笔记本上另有一个常驻进程，只把 <code>ssh -N cloud-proxy</code> 拉起来，保住本机 17890。云电脑和跳板的隧道由上面三层负责。</p>
+    </section>
+
+    <figure class="figure">
+      <p class="figure-label">03 · Layer stack · Compensating layers</p>
+      <div class="diagram-container">
+        <svg viewBox="0 0 1080 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="share-keep-title share-keep-desc">
+          <title id="share-keep-title">三层保活和最后剩下的风险</title>
+          <desc id="share-keep-desc">反向隧道断开后，监督进程约 20 秒重拨，五分钟任务只补缺失文件，跳板按 30 秒两次清死连接；跳板 sshd 宕机时三层都无效，改用面板 VNC。笔记本进程不在这三层里。</desc>
+          <defs>
+            <marker id="keep-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+            </marker>
+            <marker id="keep-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/>
+            </marker>
+            <marker id="keep-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/>
+            </marker>
+          </defs>
+
+          <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+          <text x="36" y="76" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" letter-spacing="0.14em">风险</text>
+          <line x1="72" y1="88" x2="72" y2="408" stroke="#4f5d75" stroke-width="1" marker-end="url(#keep-arrow)"/>
+          <text x="36" y="428" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" letter-spacing="0.14em">向下</text>
+
+          <text x="400" y="72" fill="#7a8399" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" letter-spacing="0.08em">这一层挡住</text>
+          <text x="700" y="72" fill="#7a8399" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace" letter-spacing="0.08em">漏下来</text>
+
+          <rect x="120" y="88" width="800" height="64" fill="rgba(45,49,66,0.05)"/>
+          <rect x="120" y="216" width="800" height="64" fill="#ffffff"/>
+          <rect x="120" y="280" width="800" height="64" fill="rgba(45,49,66,0.03)"/>
+          <rect x="120" y="344" width="800" height="64" fill="#f5f5f5"/>
+          <rect x="120" y="88" width="800" height="320" fill="none" stroke="rgba(45,49,66,0.12)" stroke-width="1"/>
+          <line x1="120" y1="152" x2="920" y2="152" stroke="rgba(45,49,66,0.12)" stroke-width="1"/>
+          <line x1="120" y1="280" x2="920" y2="280" stroke="rgba(45,49,66,0.12)" stroke-width="1"/>
+          <rect x="120" y="152" width="800" height="64" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1.2"/>
+          <rect x="120" y="344" width="800" height="64" fill="#f5f5f5" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3"/>
+
+          <text x="140" y="128" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.08em">IN</text>
+          <text x="200" y="128" fill="#2d3142" font-size="16" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif">隧道断开</text>
+          <text x="400" y="128" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">反向隧道没了</text>
+          <text x="700" y="128" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">2222 消失</text>
+
+          <text x="140" y="192" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.08em">L1</text>
+          <text x="200" y="192" fill="#2d3142" font-size="16" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif">监督进程</text>
+          <text x="400" y="192" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">约 20 秒重拨</text>
+          <text x="700" y="192" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">跳板 sshd 停则失败</text>
+
+          <text x="140" y="256" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.08em">L2</text>
+          <text x="200" y="256" fill="#2d3142" font-size="16" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif">定时恢复</text>
+          <text x="400" y="256" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">5 分钟，缺文件才补</text>
+          <text x="700" y="256" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">死会话补不上</text>
+
+          <text x="140" y="320" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.08em">L3</text>
+          <text x="200" y="320" fill="#2d3142" font-size="16" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif">清理死连接</text>
+          <text x="400" y="320" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">保活 30 秒 × 2</text>
+          <text x="700" y="320" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">仍回包就留下</text>
+
+          <text x="140" y="384" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.08em">OUT</text>
+          <text x="200" y="384" fill="#2d3142" font-size="16" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif">剩下的风险</text>
+          <text x="400" y="384" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">跳板 sshd 宕机</text>
+          <text x="700" y="384" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">改用面板 VNC</text>
+
+          <rect x="120" y="448" width="800" height="56" rx="6" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.20)" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="140" y="480" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif">笔记本常驻</text>
+          <text x="280" y="480" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">只拉起本机 17890，不修云电脑，也不修跳板</text>
+
+          <line x1="36" y1="548" x2="1044" y2="548" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+          <text x="36" y="572" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">LEGEND</text>
+          <rect x="124" y="560" width="12" height="12" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+          <text x="144" y="572" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">真正重拨的那一层</text>
+          <line x1="300" y1="568" x2="328" y2="568" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="336" y="572" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">剩下的风险，以及层外的本机进程</text>
+        </svg>
+      </div>
+      <p class="caption">强调色只在监督进程上。最底下的虚线是剩下的风险，再往下那一条虚线框在三层之外。</p>
+    </figure>
+
+    <div class="cards">
+      <article class="card">
+        <p class="eyebrow">Login</p>
+        <div class="card-header">
+          <span class="card-dot coral"></span>
+          <h3>登录</h3>
+        </div>
+        <ul>
+          <li>云电脑拨出，2222 只在跳板回环</li>
+          <li>第二跳用户是 root</li>
+          <li>核对固定的主机密钥</li>
+        </ul>
+      </article>
+      <article class="card">
+        <p class="eyebrow">Node</p>
+        <div class="card-header">
+          <span class="card-dot ink"></span>
+          <h3>节点</h3>
+        </div>
+        <ul>
+          <li>box 会话，17890 接到 7890</li>
+          <li>出口在云电脑，direct</li>
+          <li>跳板 443 是另一条订阅</li>
+        </ul>
+      </article>
+      <article class="card">
+        <p class="eyebrow">Keepalive</p>
+        <div class="card-header">
+          <span class="card-dot muted"></span>
+          <h3>保活</h3>
+        </div>
+        <ul>
+          <li>20 秒重拨，5 分钟补文件</li>
+          <li>跳板 30 秒 × 2 清死会话</li>
+          <li>sshd 宕了，打开 VNC</li>
+        </ul>
+      </article>
+    </div>
+
+    <footer class="footer">
+      <p>公开稿。地址、指纹和文件路径没有写进来。第二张图是架构分叉，用来看同一条隧道分成 shell 和 SOCKS。</p>
+      <p>2026-10-10 · 默认配色 · 汉字回落到苹方 / 宋体</p>
+    </footer>
+  </div>
+</body>
+</html>
