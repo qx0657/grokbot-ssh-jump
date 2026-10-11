@@ -233,9 +233,9 @@
   <div class="container">
 
     <header class="header">
-      <p class="header-eyebrow">Share · 2026-10-10</p>
+      <p class="header-eyebrow">Share · 2026-10-11</p>
       <h1>Grokbot 没有公网 SSH，也能登录，也能当节点</h1>
-      <p class="subtitle">Grokbot 自己拨出来，把 22 挂在跳板的回环 2222 上。笔记本经这条隧道登录 root；另一条会话把 Grokbot 的 7890 拉到本机 17890。保活有三层，每一层都有漏下去的情况。</p>
+      <p class="subtitle">Grokbot 自己拨出来，把 22 挂在跳板的回环 2222 上。笔记本经这条隧道登录 root；另一条会话把 Grokbot 的 7890 拉到本机 17890。常见断法是虚拟机被暂停，恢复后几秒重连；每一层仍有接不住的情况。</p>
     </header>
 
     <section class="prose">
@@ -404,7 +404,7 @@ Host grokbot
 
     <section class="prose">
       <h2>节点是 box 的另一条会话</h2>
-      <p>同一个 2222 上再开一条会话，用户是 box。这条会话留在转发上：笔记本的 <code>127.0.0.1:17890</code> 接到 Grokbot 的 <code>127.0.0.1:7890</code>。7890 是Grokbot 上的 mixed 入口，出站 direct，出口地址属于 Grokbot，流量记在 Grokbot 上。</p>
+      <p>同一个 2222 上再开一条会话，用户是 box。这条会话留在转发上：笔记本的 <code>127.0.0.1:17890</code> 接到 Grokbot 的 <code>127.0.0.1:7890</code>。7890 是 Grokbot 上的 mixed 入口，出站 direct，出口地址属于 Grokbot，流量记在 Grokbot 上。</p>
       <p>代理客户端里它是一个 SOCKS，指向 <code>127.0.0.1:17890</code>，UDP 关掉。订阅文件里没有这一条。跳板自己的订阅端口在 443，流量留在跳板里，到边界就停。</p>
       <pre>Host grokbot-proxy
   HostName 127.0.0.1
@@ -557,11 +557,13 @@ Host grokbot
 
     <section class="prose">
       <h2>保活三层，本机进程只管 17890</h2>
-      <p>隧道会断。三层各补一种断法。拨出侧的保活是 15 秒 × 3，笔记本这段转发是 30 秒 × 6，跳板 sshd 是 30 秒 × 2。三处数字各管各的连接。</p>
-      <p>监督进程大约每 20 秒看一次Grokbot sshd、固定主机密钥、root 的钥匙、7890，以及那条 <code>-R</code>。断了就重拨。2222 被占住时，只结束跳板上听在回环 2222 的那一个会话，跳板自己的 sshd 继续留着。</p>
+      <p>常见的断法是平台把 Grokbot 暂停再恢复。暂停期间 Grokbot 不发包。跳板按 30 秒 × 2 等响应，大约 90 秒后拆掉这条会话。暂停短于这 90 秒就恢复时，跳板上的旧会话还占着 2222，新的 <code>-R</code> 绑不上去。</p>
+      <p>监督进程大约每 20 秒走一轮，看 Grokbot 的 sshd、固定主机密钥、root 的钥匙、7890，以及那条 <code>-R</code>。醒来时墙钟比预期多走 30 秒以上，或者内核日志里出现新的虚拟机 fork，就当作刚恢复，一分钟内只处理一次。下一轮先核对跳板回环 2222 上的主机密钥。对得上就留着隧道。对不上，或者这一跳没有结果，就停掉本机 <code>-R</code>，只结束跳板上听在回环 2222 的那一个会话，同一轮立刻重连。从发现恢复到开始重连，测到的是 3–16 秒。检测本身落在下一轮，最多再晚大约 20 秒。暂停的那一段时间，隧道仍然是断的。</p>
+      <p>2222 被占住、第一次绑定失败时，同样立刻清掉那个回环会话，2 秒后再拨。其他失败要连续两次才清。跳板自己的 sshd 继续留着。</p>
       <p>第二层每 5 分钟跑一次。启动文件缺了才补回去，再把监督进程拉起来。文件还在、会话已经死了的时候，这一层补不上。</p>
-      <p>第三层在跳板的 sshd 上。30 秒一次，连续 2 次没有响应就拆连接。对端还在回保活包时，它留着这条连接。</p>
+      <p>第三层在跳板的 sshd 上。30 秒一次，连续 2 次没有响应就拆连接。对端还在回保活包时，它留着这条连接，2222 继续被占着。</p>
       <p>跳板的 sshd 整个停了，三层都拨不进去。这时打开商家面板的 VNC。笔记本上另有一个常驻进程，只把 <code>ssh -N grokbot-proxy</code> 拉起来，保住本机 17890。Grokbot 和跳板的隧道由上面三层负责。</p>
+      <p>拨出侧的保活是 15 秒 × 3，笔记本这段转发是 30 秒 × 6，跳板 sshd 是 30 秒 × 2。三处数字各管各的连接。</p>
     </section>
 
     <figure class="figure">
@@ -569,7 +571,7 @@ Host grokbot
       <div class="diagram-container">
         <svg viewBox="0 0 1080 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="share-keep-title share-keep-desc">
           <title id="share-keep-title">三层保活和最后剩下的风险</title>
-          <desc id="share-keep-desc">反向隧道断开后，监督进程约 20 秒重拨，五分钟任务只补缺失文件，跳板按 30 秒两次清死连接；跳板 sshd 宕机时三层都无效，改用面板 VNC。笔记本进程不在这三层里。</desc>
+          <desc id="share-keep-desc">虚拟机暂停后，监督进程在下一轮核对 2222，不对就清掉回环上的旧会话并立刻重连；暂停期间隧道仍断。五分钟任务只补缺失文件，跳板约 90 秒才清不响应的连接。跳板 sshd 宕机时改用面板 VNC。笔记本进程不在这三层里。</desc>
           <defs>
             <marker id="keep-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
               <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
@@ -603,13 +605,13 @@ Host grokbot
 
           <text x="140" y="128" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.08em">IN</text>
           <text x="200" y="128" fill="#2d3142" font-size="16" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif">隧道断开</text>
-          <text x="400" y="128" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">反向隧道没了</text>
-          <text x="700" y="128" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">2222 消失</text>
+          <text x="400" y="128" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">常见是虚拟机暂停</text>
+          <text x="700" y="128" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">旧会话占着 2222</text>
 
           <text x="140" y="192" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.08em">L1</text>
           <text x="200" y="192" fill="#2d3142" font-size="16" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif">监督进程</text>
-          <text x="400" y="192" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">约 20 秒重拨</text>
-          <text x="700" y="192" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">跳板 sshd 停则失败</text>
+          <text x="400" y="192" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">恢复后核对，坏了马上重连</text>
+          <text x="700" y="192" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">暂停那一段仍断着</text>
 
           <text x="140" y="256" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.08em">L2</text>
           <text x="200" y="256" fill="#2d3142" font-size="16" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif">定时恢复</text>
@@ -633,7 +635,7 @@ Host grokbot
           <line x1="36" y1="548" x2="1044" y2="548" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
           <text x="36" y="572" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">LEGEND</text>
           <rect x="124" y="560" width="12" height="12" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
-          <text x="144" y="572" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">真正重拨的那一层</text>
+          <text x="144" y="572" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">恢复后重连的那一层</text>
           <line x1="300" y1="568" x2="328" y2="568" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3"/>
           <text x="336" y="572" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">剩下的风险，以及层外的本机进程</text>
         </svg>
@@ -673,8 +675,8 @@ Host grokbot
           <h3>保活</h3>
         </div>
         <ul>
-          <li>20 秒重拨，5 分钟补文件</li>
-          <li>跳板 30 秒 × 2 清死会话</li>
+          <li>暂停后核对 2222，几秒重连</li>
+          <li>5 分钟只补缺的文件</li>
           <li>sshd 宕了，打开 VNC</li>
         </ul>
       </article>
@@ -682,7 +684,7 @@ Host grokbot
 
     <footer class="footer">
       <p>公开稿。地址、指纹和文件路径没有写进来。第二张图是架构分叉，用来看同一条隧道分成 shell 和 SOCKS。</p>
-      <p>2026-10-10 · 默认配色 · 汉字回落到苹方 / 宋体</p>
+      <p>2026-10-11 更新保活 · 默认配色 · 汉字回落到苹方 / 宋体</p>
     </footer>
   </div>
 </body>
