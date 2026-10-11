@@ -558,7 +558,8 @@ Host grokbot
     <section class="prose">
       <h2>保活三层，本机进程只管 17890</h2>
       <p>常见的断法是平台把 Grokbot 暂停再恢复。暂停期间 Grokbot 不发包。跳板按 30 秒 × 2 等响应，大约 90 秒后拆掉这条会话。暂停短于这 90 秒就恢复时，跳板上的旧会话还占着 2222，新的 <code>-R</code> 绑不上去。</p>
-      <p>监督进程大约每 20 秒走一轮，看 Grokbot 的 sshd、固定主机密钥、root 的钥匙、7890，以及那条 <code>-R</code>。醒来时墙钟比预期多走 30 秒以上，或者内核日志里出现新的虚拟机 fork，就当作刚恢复，一分钟内只处理一次。下一轮先核对跳板回环 2222 上的主机密钥。对得上就留着隧道。对不上，或者这一跳没有结果，就停掉本机 <code>-R</code>，只结束跳板上听在回环 2222 的那一个会话，同一轮立刻重连。从发现恢复到开始重连，测到的是 3–16 秒。检测本身落在下一轮，最多再晚大约 20 秒。暂停的那一段时间，隧道仍然是断的。</p>
+      <p>监督进程大约每 20 秒走一轮，看 Grokbot 的 sshd、固定主机密钥、root 的钥匙、7890，以及那条 <code>-R</code>。醒来时墙钟比预期多走 30 秒以上，或者内核日志里出现新的虚拟机 fork，就当作刚恢复，一分钟内只处理一次。下一轮先核对跳板回环 2222 上的主机密钥。对得上就留着隧道。对不上，或者这一跳没有结果，就停掉本机 <code>-R</code>，只结束跳板上听在回环 2222 的那一个会话，同一轮立刻重连。从发现恢复到开始重连，2026-10-11 的 26 次里是 3–17 秒，中位数 16 秒。检测本身落在下一轮，最多再晚大约 20 秒。暂停的那一段时间，隧道仍然是断的。</p>
+      <p>去跳板做核对或清理时，整次调用最多 30 秒，并且每 5 秒看一次对端还在不在，连续 3 次没有响应就结束。建连超时只管连上之前。暂停如果正好发生在这次调用中间，连接会挂住，主循环就停在那里。19:03 那次停了约 2 分钟，隧道没有人重连。19:06 起到点没有结果就当作这一跳没有回来，主循环继续走。5 分钟那一层自己的两次拨号还没有这个上限；它是另一个进程，不会把监督进程卡住。</p>
       <p>2222 被占住、第一次绑定失败时，同样立刻清掉那个回环会话，2 秒后再拨。其他失败要连续两次才清。跳板自己的 sshd 继续留着。</p>
       <p>第二层每 5 分钟跑一次。启动文件缺了才补回去，再把监督进程拉起来。文件还在、会话已经死了的时候，这一层补不上。</p>
       <p>第三层在跳板的 sshd 上。30 秒一次，连续 2 次没有响应就拆连接。对端还在回保活包时，它留着这条连接，2222 继续被占着。</p>
@@ -571,7 +572,7 @@ Host grokbot
       <div class="diagram-container">
         <svg viewBox="0 0 1080 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="share-keep-title share-keep-desc">
           <title id="share-keep-title">三层保活和最后剩下的风险</title>
-          <desc id="share-keep-desc">虚拟机暂停后，监督进程在下一轮核对 2222，不对就清掉回环上的旧会话并立刻重连；暂停期间隧道仍断。五分钟任务只补缺失文件，跳板约 90 秒才清不响应的连接。跳板 sshd 宕机时改用面板 VNC。笔记本进程不在这三层里。</desc>
+          <desc id="share-keep-desc">虚拟机暂停后，监督进程在下一轮核对 2222，不对就清掉回环上的旧会话并立刻重连；去跳板的检查最多 30 秒。暂停期间隧道仍断。五分钟任务只补缺失文件，跳板约 90 秒才清不响应的连接。跳板 sshd 宕机时改用面板 VNC。笔记本进程不在这三层里。</desc>
           <defs>
             <marker id="keep-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
               <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
@@ -610,7 +611,7 @@ Host grokbot
 
           <text x="140" y="192" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.08em">L1</text>
           <text x="200" y="192" fill="#2d3142" font-size="16" font-weight="600" font-family="'Geist', 'PingFang SC', sans-serif">监督进程</text>
-          <text x="400" y="192" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">恢复后核对，坏了马上重连</text>
+          <text x="400" y="192" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">恢复后重连，检查限 30 秒</text>
           <text x="700" y="192" fill="#4f5d75" font-size="8" font-family="'Geist Mono', 'PingFang SC', monospace">暂停那一段仍断着</text>
 
           <text x="140" y="256" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.08em">L2</text>
@@ -675,7 +676,7 @@ Host grokbot
           <h3>保活</h3>
         </div>
         <ul>
-          <li>暂停后核对 2222，几秒重连</li>
+          <li>暂停后核对 2222，检查限 30 秒</li>
           <li>5 分钟只补缺的文件</li>
           <li>sshd 宕了，打开 VNC</li>
         </ul>
@@ -684,7 +685,7 @@ Host grokbot
 
     <footer class="footer">
       <p>公开稿。地址、指纹和文件路径没有写进来。第二张图是架构分叉，用来看同一条隧道分成 shell 和 SOCKS。</p>
-      <p>2026-10-11 更新保活 · 默认配色 · 汉字回落到苹方 / 宋体</p>
+      <p>2026-10-11 晚更新保活 · 默认配色 · 汉字回落到苹方 / 宋体</p>
     </footer>
   </div>
 </body>
